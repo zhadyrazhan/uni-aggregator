@@ -32,11 +32,14 @@ The `ai-rules` files are named according to the project requirements.
    verify filtering and the chat panel against the running dev server.
 8. Found and fixed a client-side interactivity bug during that manual pass, then re-ran the full
    test suite.
+9. Before deploying to Netlify, fixed the serverless chat-write blocker (see "Open threads"
+   below) and merged the working branch into `main`.
 
 ## Definition of Done
 
-- [x] GitHub repository (`github.com/zhadyrazhan/uni-aggregator`; local `main` tracks
-      `origin/initial-setup-branch`)
+- [x] GitHub repository (`github.com/zhadyrazhan/uni-aggregator`, `main` branch)
+- [ ] Deploy link (Netlify) — deploy in progress; the serverless chat-write blocker is resolved
+      (see "Open threads")
 - [x] README (rewritten, with a requirement-to-file map)
 - [x] WORKFLOW.md (this file)
 - [x] `ai-rules/*.md` from the participant (4 files, one per role, all under `zhadyra`)
@@ -95,13 +98,15 @@ work that's mechanical once you know the shape of the result, but slow to do fro
 
 Not finished, and not recoverable from reading the code later:
 
-- **Deploy is blocked on SQLite writes.** `AgentMemory` (`src/lib/ai/memory.ts`) creates a
+- **Serverless chat writes — fixed.** `AgentMemory` (`src/lib/ai/memory.ts`) creates a
   `ChatSession` row and a `ChatMessage` row on every chat turn, so the app is *not* read-only at
-  request time. The `dev.db` bundled via `outputFileTracingIncludes` lands on a read-only
-  serverless filesystem, so the first chat message would fail with `SQLITE_READONLY` while the
-  catalog pages kept working. Two ways out: copy the DB to `/tmp` on cold start, or point
-  `DATABASE_URL` at Turso/Neon. Neither touches query code — everything goes through
-  `src/lib/db.ts` and `src/lib/universities.ts`.
+  request time, and the `dev.db` bundled via `outputFileTracingIncludes` lands on a read-only
+  serverless filesystem. `src/lib/db.ts` now copies the seeded DB into `/tmp/dev.db` once per
+  cold start (when the `NETLIFY` or `VERCEL` environment variable is set) and opens the Prisma
+  client against that copy via the `datasourceUrl` option — no query code changes. Remaining
+  tradeoff: `/tmp` is ephemeral per function instance, so chat history doesn't survive a cold
+  start or get shared across parallel instances — acceptable for a class project; for durable
+  history, switch to Turso/Neon and rerun `npx prisma migrate deploy`.
 - **No test exercises compaction.** `MAX_BUFFER_MESSAGES` is 16 and the longest e2e conversation
   is a single turn, so `compactIfNeeded()` never runs under test — including the tool-call-group
   boundary logic that was the subject of bug 4 above.

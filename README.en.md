@@ -65,25 +65,49 @@ npm run build        # production build + typecheck
 npm run lint
 ```
 
-## Deploying (Vercel)
+## Deploying (Vercel or Netlify)
 
+Both hosts run Next.js as serverless/edge functions with a read-only filesystem except `/tmp`
+— `src/lib/db.ts` already accounts for this (see below), so the steps for either platform are
+nearly identical.
+
+**Vercel:**
 1. `npx vercel` (or connect the GitHub repo in the Vercel dashboard) and log in when prompted.
 2. Set the `OPENAI_API_KEY` and `DATABASE_URL=file:./dev.db` environment variables in the
-   Vercel project settings.
-3. Deploy. `npm run build` (what Vercel runs) applies migrations and reseeds the catalog before
-   building (`prisma migrate deploy && tsx prisma/seed.ts && next build`), so `prisma/dev.db`
-   is freshly generated at build time — it's gitignored, not committed. `next.config.ts` sets
-   `outputFileTracingIncludes` so that generated file gets bundled into the serverless functions
-   that read it at request time.
+   project settings.
+3. Deploy.
 
-**Open item before deploying:** the catalog is read-only at request time and deploys as-is, but
-the chat needs one fix first. `AgentMemory` (`src/lib/ai/memory.ts`) writes a
-`ChatSession`/`ChatMessage` row on every turn, and the bundled `prisma/dev.db` sits on a
-read-only filesystem on Vercel — so until that fix lands, the first chat message fails with
-`SQLITE_READONLY` while the browse pages keep working. Resolved by copying the DB to `/tmp` on
-cold start, or by pointing `DATABASE_URL` at a hosted Postgres (Vercel Postgres, Neon) or
-Turso/libSQL and rerunning `npx prisma migrate deploy`. No application code changes either way,
-since all queries go through `src/lib/db.ts` and `src/lib/universities.ts`.
+**Netlify:**
+1. In the Netlify dashboard: "Add new site" → "Import an existing project" → GitHub →
+   `uni-aggregator`, branch `main`.
+2. Netlify auto-detects Next.js and uses `@netlify/plugin-nextjs` with zero extra config (no
+   `netlify.toml` needed). Make sure the build command is `npm run build` (not a bare
+   `next build`), since `package.json` already chains
+   `prisma migrate deploy && tsx prisma/seed.ts` in front of `next build`.
+3. In Site settings → Environment variables, set `OPENAI_API_KEY` and
+   `DATABASE_URL=file:./dev.db`.
+4. Deploy.
+
+Either way, the build command (`npm run build`) applies migrations and reseeds the catalog
+before building, so `prisma/dev.db` is freshly generated at build time — it's gitignored, not
+committed. `next.config.ts` sets `outputFileTracingIncludes` so that generated file gets bundled
+into the serverless functions.
+
+**How chat works on serverless.** `AgentMemory` (`src/lib/ai/memory.ts`) writes a
+`ChatSession`/`ChatMessage` row on every turn — the bundled `prisma/dev.db` won't do for that,
+since it's read-only. `src/lib/db.ts` handles this: on the first database access at runtime
+(detected via the `NETLIFY` or `VERCEL` environment variable, which both platforms set
+automatically), it copies the seeded DB into `/tmp/dev.db` once per cold start and opens the
+Prisma client against that copy via the `datasourceUrl` option — no query code changes. Local
+dev and the build step's own `prisma migrate deploy` + seed don't hit this branch at all and
+keep working through `DATABASE_URL` as before.
+
+**One thing to know about `/tmp`:** it's ephemeral, per function instance — chats started there
+don't survive a cold start (fine for a class project) and aren't shared across parallel function
+instances. If you need durable chat history later, point `DATABASE_URL` at a hosted Postgres
+(Vercel Postgres, Neon) or Turso/libSQL and rerun `npx prisma migrate deploy` — no application
+code changes needed, since every query already goes through `src/lib/db.ts` and
+`src/lib/universities.ts`.
 
 ## Known npm audit note
 
