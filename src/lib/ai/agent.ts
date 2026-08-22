@@ -4,10 +4,10 @@ import { SYSTEM_PROMPT } from "@/lib/ai/prompt";
 import { executeTool, TOOLS_SCHEMA } from "@/lib/ai/tools";
 
 /**
- * Hand-rolled tool-calling agent loop — no LangChain AgentExecutor. Mirrors the pattern from
- * project1-kinomaniac/agent.py (MovieAgent.ask): call the model with tools -> if it requests
- * tool calls, execute them and feed results back -> repeat until it returns a final text answer
- * or the iteration cap is hit. Retries transient API errors with exponential backoff.
+ * Hand-rolled tool-calling agent loop — no LangChain AgentExecutor. Call the model with tools ->
+ * if it requests tool calls, execute them and feed the results back -> repeat until it returns a
+ * final text answer or the iteration cap is hit. Retries transient API errors with exponential
+ * backoff.
  */
 const MAX_TOOL_ITERATIONS = 6;
 const MAX_RETRIES = 3;

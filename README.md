@@ -1,90 +1,99 @@
+*[English version — [README.en.md](README.en.md)]*
+
 # UniGuide — Агрегатор университетов
 
-Module 2 "AI-Native App Sprint" project. A university aggregator: browse/filter a catalog
-of universities and their admission requirements (works with zero AI), plus an optional AI
-assistant that helps pick, explain, and compare universities using real tool calls against the
-same catalog.
+Проект Модуля 2 «AI-Native App Sprint». Агрегатор университетов: просмотр и фильтрация
+каталога вузов и их требований к поступлению (работает полностью без ИИ), плюс опциональный
+ИИ-ассистент, который помогает выбрать, объяснить и сравнить университеты через реальные вызовы
+инструментов по тому же каталогу.
 
-**Project:** #3 — Агрегатор университетов (see `Групповой_проект.pdf`).
+**Проект:** №3 — Агрегатор университетов (см. `Групповой_проект.pdf`).
 
-## Stack
+## Стек
 
-| Layer | Tech |
+| Слой | Технологии |
 |---|---|
 | Frontend | Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS |
-| Backend | Next.js API Route Handlers (`src/app/api/**`) — no separate server |
-| Database | Prisma ORM 6 + SQLite (`prisma/dev.db`, seeded, zero external accounts needed) |
-| AI | OpenAI SDK (Node), hand-rolled tool-calling loop (no LangChain `AgentExecutor`) |
-| Testing | Vitest (unit) + Playwright (e2e) |
+| Backend | Route Handlers Next.js (`src/app/api/**`) — отдельного сервера нет |
+| База данных | Prisma ORM 6 + SQLite (`prisma/dev.db`, с сидом, внешние аккаунты не нужны) |
+| ИИ | OpenAI SDK (Node), самописный цикл вызова инструментов (без `AgentExecutor` из LangChain) |
+| Тестирование | Vitest (модульные) + Playwright (e2e) |
 
-## Requirement → file mapping
+## Карта «требование → файл»
 
-| Requirement | Where |
+| Требование | Где |
 |---|---|
-| Direct LLM API calls | `openai.OpenAI().chat.completions.create(...)` — [`src/lib/ai/agent.ts`](src/lib/ai/agent.ts) |
-| Custom tool-calling loop (no `AgentExecutor`) | `runAgent()` — [`src/lib/ai/agent.ts`](src/lib/ai/agent.ts) |
-| ≥3 tools, backed by real data | 4 tools in [`src/lib/ai/tools.ts`](src/lib/ai/tools.ts), all querying [`src/lib/universities.ts`](src/lib/universities.ts) |
-| Multi-tool calling (comparisons) | Agent calls `get_university_details` once per university being compared — see `src/lib/ai/prompt.ts` rule 2 |
-| Custom memory + compaction | `AgentMemory` — [`src/lib/ai/memory.ts`](src/lib/ai/memory.ts), backed by `ChatSession`/`ChatMessage` in `prisma/schema.prisma` |
-| Retry / error handling | `callWithRetry()` — [`src/lib/ai/agent.ts`](src/lib/ai/agent.ts) |
-| Site works with zero AI | `src/app/page.tsx` + `src/app/universities/[id]/page.tsx` are Server Components that never import `src/lib/ai/*`; `ChatPanel` is a dismissible widget |
-| No plain HTML/CSS design | Tailwind + shared components — `src/components/*` |
-| `ai-rules/<role>_<name>.md` | [`ai-rules/`](ai-rules/) (4 files) |
-| Autotests | [`tests/unit/`](tests/unit) (Vitest), [`tests/e2e/`](tests/e2e) (Playwright) |
-| Workflow doc + Team Reflection | [`WORKFLOW.md`](WORKFLOW.md) |
+| Прямые вызовы LLM API | `openai.OpenAI().chat.completions.create(...)` — [`src/lib/ai/agent.ts`](src/lib/ai/agent.ts) |
+| Самописный цикл вызова инструментов (без `AgentExecutor`) | `runAgent()` — [`src/lib/ai/agent.ts`](src/lib/ai/agent.ts) |
+| ≥3 инструментов на реальных данных | 4 инструмента в [`src/lib/ai/tools.ts`](src/lib/ai/tools.ts), все обращаются к [`src/lib/universities.ts`](src/lib/universities.ts) |
+| Вызов нескольких инструментов (сравнения) | Агент вызывает `get_university_details` отдельно для каждого сравниваемого вуза — см. правило 2 в `src/lib/ai/prompt.ts` |
+| Собственная память + сжатие | `AgentMemory` — [`src/lib/ai/memory.ts`](src/lib/ai/memory.ts), поверх `ChatSession`/`ChatMessage` в `prisma/schema.prisma` |
+| Ретраи / обработка ошибок | `callWithRetry()` — [`src/lib/ai/agent.ts`](src/lib/ai/agent.ts) |
+| Сайт работает без ИИ | `src/app/page.tsx` и `src/app/universities/[id]/page.tsx` — Server Components, которые никогда не импортируют `src/lib/ai/*`; `ChatPanel` — закрываемый виджет |
+| Не «голый» HTML/CSS-дизайн | Tailwind + переиспользуемые компоненты — `src/components/*` |
+| `ai-rules/<роль>_<имя>.md` | [`ai-rules/`](ai-rules/) (4 файла) |
+| Автотесты | [`tests/unit/`](tests/unit) (Vitest), [`tests/e2e/`](tests/e2e) (Playwright) |
+| Документ workflow + «Рефлексия» | [`WORKFLOW.md`](WORKFLOW.md) |
 
-## Setup
+## Установка
 
-Requires Node.js (v20+; built and tested on v26) and npm — already installed on this machine,
-nothing else is required.
+Требуется Node.js (v20+; собрано и протестировано на v26) и npm — на этой машине уже
+установлены, больше ничего не нужно.
 
 ```bash
 npm install
-cp .env.example .env   # then edit .env and add your real OPENAI_API_KEY
-npx prisma migrate dev # first time only — creates prisma/dev.db
-npm run db:seed        # seeds 20 universities + admission requirements
+cp .env.example .env   # затем впишите в .env настоящий OPENAI_API_KEY
+npx prisma migrate dev # только первый раз — создаёт prisma/dev.db
+npm run db:seed        # засеивает 20 университетов + требования к поступлению
 npm run dev            # http://localhost:3000
 ```
 
-> Use `http://localhost:3000`, not `http://127.0.0.1:3000` — Next.js 16's dev-mode cross-origin
-> protection blocks the JS bundle on `127.0.0.1` by default, which silently breaks all
-> client-side interactivity (filters, chat) with no visible error on the page itself.
+> Открывайте `http://localhost:3000`, а не `http://127.0.0.1:3000` — cross-origin-защита
+> dev-режима Next.js 16 по умолчанию блокирует JS-бандл на `127.0.0.1`, из-за чего вся
+> клиентская интерактивность (фильтры, чат) молча ломается, причём на самой странице никакой
+> ошибки не видно.
 
-Without a valid `OPENAI_API_KEY`, everything except the chat widget works normally; the chat
-widget shows a clear error message instead of crashing.
+Без валидного `OPENAI_API_KEY` всё, кроме виджета чата, работает нормально; сам виджет вместо
+падения показывает понятное сообщение об ошибке.
 
-## Testing
+## Тестирование
 
 ```bash
-npm run test         # Vitest unit tests (tool functions, query/filter logic)
-npx playwright install chromium   # one-time browser download
-npm run test:e2e     # Playwright e2e (browsing works without AI, chat panel)
-npm run build         # production build + typecheck
+npm run test         # модульные тесты Vitest (функции-инструменты, логика запросов и фильтров)
+npx playwright install chromium   # разовая загрузка браузера
+npm run test:e2e     # e2e Playwright (просмотр каталога без ИИ, панель чата)
+npm run build        # продакшн-сборка + проверка типов
 npm run lint
 ```
 
-## Deploying (Vercel)
+## Деплой (Vercel)
 
-1. `npx vercel` (or connect the GitHub repo in the Vercel dashboard) and log in when prompted.
-2. Set the `OPENAI_API_KEY` and `DATABASE_URL=file:./dev.db` environment variables in the
-   Vercel project settings.
-3. Deploy. `npm run build` (what Vercel runs) applies migrations and reseeds the catalog before
-   building (`prisma migrate deploy && tsx prisma/seed.ts && next build`), so `prisma/dev.db`
-   is freshly generated at build time — it's gitignored, not committed. `next.config.ts` sets
-   `outputFileTracingIncludes` so that generated file gets bundled into the serverless functions
-   that read it at request time.
+1. `npx vercel` (или подключите GitHub-репозиторий в дашборде Vercel) и войдите в аккаунт по
+   запросу.
+2. Задайте переменные окружения `OPENAI_API_KEY` и `DATABASE_URL=file:./dev.db` в настройках
+   проекта на Vercel.
+3. Задеплойте. `npm run build` (именно его запускает Vercel) применяет миграции и пересеивает
+   каталог перед сборкой (`prisma migrate deploy && tsx prisma/seed.ts && next build`), так что
+   `prisma/dev.db` генерируется заново на этапе сборки — файл в `.gitignore` и не коммитится.
+   `next.config.ts` задаёт `outputFileTracingIncludes`, чтобы этот сгенерированный файл попал в
+   бандл serverless-функций, которые читают его при обработке запросов.
 
-**Known tradeoff:** SQLite-on-serverless works here because the app is read-only at request time
-(no writes happen outside `npm run db:seed`, which you run locally before deploying). If you
-outgrow that — e.g. you want admins to edit the catalog live — swap `DATABASE_URL` for a hosted
-Postgres (Vercel Postgres, Neon) or Turso/libSQL and rerun `npx prisma migrate deploy`; no
-application code needs to change since all queries go through `src/lib/universities.ts`.
+**Открытая задача перед деплоем:** каталог доступен только на чтение во время обработки запроса
+и деплоится как есть, а вот чат требует одной правки. `AgentMemory` (`src/lib/ai/memory.ts`)
+пишет строку `ChatSession`/`ChatMessage` на каждый ход диалога, а вложенный `prisma/dev.db` лежит
+на файловой системе Vercel, доступной только для чтения, — то есть до этой правки первое же
+сообщение в чат упадёт с `SQLITE_READONLY`, тогда как страницы просмотра продолжат работать.
+Решается копированием БД в `/tmp` на холодном старте либо переводом `DATABASE_URL` на managed
+Postgres (Vercel Postgres, Neon) или Turso/libSQL с повторным `npx prisma migrate deploy`.
+В обоих случаях код приложения менять не нужно: все запросы идут через `src/lib/db.ts` и
+`src/lib/universities.ts`.
 
-## Known npm audit note
+## Замечание по npm audit
 
-`npm audit` flags a high-severity advisory in `deepmerge-ts`, a transitive dependency of
-Prisma's own CLI config parser. It's exploitable via a maliciously deep object passed into that
-parser — this project only ever feeds it our own trusted `schema.prisma`/config, not user input,
-so it's not a real risk here. Fixing it requires downgrading Prisma to a pre-release build
-(`npm audit fix --force` suggests `6.12.0-dev`), which isn't worth the instability trade for a
-dev-only advisory.
+`npm audit` показывает уязвимость высокой критичности в `deepmerge-ts` — транзитивной
+зависимости парсера конфигов в CLI самой Prisma. Она эксплуатируется через специально
+сконструированный объект чрезмерной вложенности, передаваемый в этот парсер; в данном проекте
+парсер получает только наши собственные доверенные `schema.prisma` и конфиги, а не
+пользовательский ввод, поэтому реального риска здесь нет. Исправление требует отката Prisma на
+пре-релизную сборку (`npm audit fix --force` предлагает `6.12.0-dev`), что не стоит потери
+стабильности ради уязвимости, актуальной только на этапе разработки.

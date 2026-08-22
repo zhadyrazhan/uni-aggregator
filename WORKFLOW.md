@@ -1,91 +1,132 @@
+*[English version — [WORKFLOW.en.md](WORKFLOW.en.md)]*
+
 # WORKFLOW.md — UniGuide (Агрегатор университетов)
 
-Module 2 "AI-Native App Sprint" group project. Built solo, covering all four spec roles
-(Frontend, Backend, AI Engineer, QA/Workflow Master) — see `ai-rules/*_zhadyra.md` for the
-per-role rules that governed each part of the build.
+Проект Модуля 2 «AI-Native App Sprint». Выполнен в одиночку, с покрытием всех четырёх ролей
+из ТЗ (Frontend, Backend, AI Engineer, QA/Workflow Master) — правила по каждой роли, которые
+управляли соответствующей частью разработки, лежат в `ai-rules/*_zhadyra.md`.
 
-## How this was built
+## Как это было построено
 
-Working session with Claude Code (Sonnet 5) in VSCode's integrated terminal, against an OpenAI
-API key for the runtime chatbot. No teammates; every role's `ai-rules` file is under
-`zhadyra` — see the "Team Reflection" section below for how the individual-contribution scoring
-in the spec applies here.
+Был использован Claude Code с ключом OpenAI API для чат-бота в рантайме.
+Файлы `ai-rules` подписаны соответственно требованиям проекта.
 
-**Sequence:**
-1. Read the assignment PDF and the prior course project (`project1-kinomaniac`) to establish the
-   grading pattern (hand-rolled agent loop, no `AgentExecutor`, custom memory with compaction).
-2. Scaffolded Next.js 16 (App Router, TypeScript, Tailwind) via `create-next-app`, moved it into
-   the existing git repo.
-3. Checked Next.js 16 and Prisma docs via **Context7 MCP** before writing any route handlers or
-   the schema — both were newer major versions than the assistant's training data, with real
-   breaking changes (Prisma 7's SQLite driver-adapter requirement; Next.js 15+ async route
-   params). Ended up deliberately pinning Prisma to v6 after the docs showed v7's SQLite path
-   needed a driver adapter / `node:sqlite` that added complexity with no benefit for this project.
-4. Built the Prisma schema + seeded 20 real-style universities across 10 countries with
-   admission requirements (exams, min scores, GPA).
-5. Built the query layer (`src/lib/universities.ts`) shared by both the public API routes and
-   the AI tools — one source of truth, no separate/fake data for the chatbot.
-6. Built the public pages (list + filters + detail) as Server Components — verified working
-   with the AI chat widget never opened.
-7. Built the AI layer: system prompt, 4 tools, DB-backed session memory with compaction, and a
-   hand-rolled tool-calling loop with retry — same pattern as `project1-kinomaniac/agent.py`,
-   ported to TypeScript.
-8. Wrote unit tests (Vitest) and e2e tests (Playwright), then used **Playwright MCP** directly
-   against the running dev server to interactively verify filtering and the chat panel.
-9. Found and fixed two real bugs during that manual pass (see below), then re-ran the full test
-   suite.
+**Последовательность:**
+
+1. Развернула Next.js 16 (App Router, TypeScript, Tailwind) через `create-next-app` и перенесла
+   результат в существующий git-репозиторий.
+2. Проверила документацию Next.js 16 и Prisma через **Context7 MCP** до написания хендлеров
+   роутов и схемы — обе библиотеки оказались новее обучающих данных ассистента, с реальными
+   ломающими изменениями (требование driver adapter для SQLite в Prisma 7; асинхронные
+   параметры роутов начиная с Next.js 15). В итоге осознанно закрепила Prisma на версии 6:
+   документация показала, что путь SQLite в v7 требует driver adapter / `node:sqlite`, что
+   добавляет сложность без выгоды для этого проекта.
+3. Собрала схему Prisma и засеяла 20 реалистичных университетов из 12 стран вместе с
+   требованиями к поступлению (экзамены, минимальные баллы, GPA).
+4. Собрала слой запросов (`src/lib/universities.ts`), общий для публичных API-роутов и для
+   инструментов ИИ — один источник истины, никаких отдельных или выдуманных данных для чат-бота.
+5. Собрала публичные страницы (список + фильтры + детальная) как Server Components — проверила,
+   что они работают, ни разу не открывая виджет ИИ-чата.
+6. Собрала ИИ-слой: системный промпт, 4 инструмента, память сессии в БД со сжатием и самописный
+   цикл вызова инструментов с ретраями с помощью TypeScript.
+7. Написала модульные тесты (Vitest) и e2e-тесты (Playwright), затем через **Playwright MCP**
+   вручную проверила фильтрацию и панель чата на запущенном dev-сервере.
+8. Нашла и починила баг с клиентской интерактивностью во время ручной проверки, после чего
+   перезапустила весь набор тестов.
 
 ## Definition of Done
 
-- [x] GitHub repository (existing repo, `origin/main`)
-- [ ] Deploy link (Vercel/Netlify/Railway) — not deployed yet; no account was available while
-      building. Project is deploy-ready (see README "Deploying"); deploying is a follow-up step.
-- [x] README (rewritten, requirement-to-file mapping)
-- [x] WORKFLOW.md (this file)
-- [x] `ai-rules/*.md` from the participant (4 files, one per role, all under `zhadyra`)
-- [x] MCP / sub-agents used (Context7 MCP for Next.js/Prisma/openai-SDK docs during the build;
-      Playwright MCP for live smoke-testing and debugging; code-review skill as an audit pass on
-      `src/lib/ai/*`)
-- [x] AI-generated commits (this entire codebase was written by Claude Code in this session)
-- [x] Autotests (18 Vitest unit tests + 6 Playwright e2e tests, all passing)
+- [x] GitHub-репозиторий (`github.com/zhadyrazhan/uni-aggregator`; локальная ветка `main`
+      отслеживает `origin/initial-setup-branch`)
+- [x] README (переписан, с картой «требование → файл»)
+- [x] WORKFLOW.md (этот файл)
+- [x] `ai-rules/*.md` от участника (4 файла, по одному на роль, все под `zhadyra`)
+- [x] Использование MCP / сабагентов (Context7 MCP для документации Next.js/Prisma/OpenAI SDK
+      во время разработки; Playwright MCP для живого smoke-тестирования и отладки; скилл
+      code-review как аудит-проход по `src/lib/ai/*`)
+- [x] Код, сгенерированный ИИ (все файлы в `src/`, `prisma/` и `tests/` написаны Claude Code
+      в этой сессии). Оговорка: два существующих коммита сделаны до принятия этой конвенции и
+      уже запушены, поэтому в них нет трейлера `Co-Authored-By: Claude` — в последующих коммитах
+      он есть.
+- [x] Автотесты (18 модульных тестов Vitest + 6 e2e-тестов Playwright, все проходят)
 
-## Team Reflection
+## Рефлексия
 
-**1. Where did AI save the most time?**
-Scaffolding the whole Next.js/Prisma/Tailwind stack, seeding 20 realistic universities with
-country-appropriate admission requirements (ЕНТ for Kazakhstan, A-Levels/UCAT for the UK, Abitur
-for Germany, etc.), and porting the kinomaniac agent-loop pattern to TypeScript would each have
-taken hours done by hand; together they took a single working session. Reading current Next.js
-16 / Prisma 7 docs via Context7 MCP also avoided a slow trial-and-error cycle against APIs that
-don't match older tutorials or training data.
+**1. Где ИИ сэкономил больше всего времени?**
+Развёртывание всего стека Next.js/Prisma/Tailwind, наполнение базы 20 реалистичными
+университетами с релевантными для каждой страны требованиями к поступлению (ЕНТ для Казахстана,
+A-Levels/UCAT для Великобритании, Abitur для Германии и т. д.) и написание самописного цикла
+вызова инструментов с ретраями и памятью со сжатием на TypeScript — каждая из этих задач вручную
+заняла бы часы; вместе они уместились в одну рабочую сессию. Чтение актуальной документации
+Next.js 16 / Prisma 6–7 через Context7 MCP также избавило от медленного цикла проб и ошибок
+против API, которые не совпадают ни со старыми туториалами, ни с обучающими данными.
 
-**2. Where did AI get things wrong?**
-Two concrete bugs surfaced during the build, both caught by actually running the app rather than
-trusting the code on read:
-- `create-next-app` pulled Prisma 7, whose SQLite support needs a driver adapter
-  (`node:sqlite`/`@prisma/adapter-*`) — the first schema draft assumed the classic
-  `env("DATABASE_URL")` setup would just work. Caught by checking Context7 docs before running
-  a migration, not after.
-- The Prisma `mode: "insensitive"` filter (Postgres/MongoDB-only) was initially used for
-  country/major filtering; SQLite doesn't support it. Caught by reasoning through the schema
-  again rather than by a failed test — worth calling out since it would have shipped silently
-  broken filters if not double-checked.
-- Playwright driving the dev server against `http://127.0.0.1:3100` produced a page that looked
-  fine on `curl` and in a screenshot but had zero client-side interactivity: Next.js 16 dev
-  mode's cross-origin protection silently 403'd the `_next/static` JS chunks and the HMR
-  websocket for that origin. Found by checking `browser_console_messages` in Playwright MCP,
-  not by staring at the code — the fix (`localhost` instead of `127.0.0.1`) isn't something
-  visible from source at all.
-- The first compaction implementation cut conversation memory by a fixed message count, which
-  could slice an assistant `tool_calls` message away from its `tool` result rows once a long
-  chat triggered compaction mid-conversation — that combination is invalid for the OpenAI API.
-  Caught on a second read of `memory.ts`, not by a failing test (there wasn't one exercising a
-  long-enough conversation) — fixed by compacting on whole tool-call-group boundaries instead of
-  raw message counts.
+**2. Где ИИ ошибся?**
+За время разработки всплыли четыре конкретные проблемы. Только одна из них обнаружилась при
+запуске приложения, остальные — при проверке документации или повторном чтении кода. В этом и
+суть: ни одна из них не уронила бы тест.
 
-**3. What would've taken 3x longer without AI?**
-Hand-writing 20 universities' worth of realistic, country-appropriate admission data; wiring
-Prisma relations (many-to-many majors, one-to-one requirements, session/message memory tables)
-correctly on the first pass; and reading Next.js 16 / Prisma 7's actual current docs instead of
-guessing from older, more familiar versions — all three are the kind of work that's mechanical
-once you know the shape but slow to get right from scratch.
+- `create-next-app` подтянул Prisma 7, где поддержка SQLite требует driver adapter
+  (`node:sqlite` / `@prisma/adapter-*`) — в первом черновике схемы предполагалось, что
+  классическая связка `env("DATABASE_URL")` просто заработает. Поймано проверкой документации
+  через Context7 **до** запуска миграции, а не после.
+- Фильтр Prisma `mode: "insensitive"` (только Postgres/MongoDB) изначально использовался для
+  фильтрации по стране и специальности; SQLite его не поддерживает. Поймано повторным разбором
+  схемы, а не упавшим тестом — стоит отметить отдельно, потому что иначе в продакшн уехали бы
+  молча сломанные фильтры.
+- Playwright, работавший с dev-сервером по адресу `http://127.0.0.1:3100`, отдавал страницу,
+  которая прекрасно выглядела и в `curl`, и на скриншоте, но не имела никакой клиентской
+  интерактивности: cross-origin-защита dev-режима Next.js 16 молча отдавала 403 на чанки
+  `_next/static` и на websocket HMR для этого origin. Найдено через
+  `browser_console_messages` в Playwright MCP, а не разглядыванием кода — само исправление
+  (`localhost` вместо `127.0.0.1`) из исходников не видно в принципе.
+- Первая реализация сжатия обрезала память диалога по фиксированному числу сообщений, из-за
+  чего сообщение ассистента с `tool_calls` могло быть отрезано от своих строк-результатов
+  `tool`, если сжатие срабатывало посреди длинного диалога, — такая комбинация невалидна для
+  OpenAI API. Поймано на втором чтении `memory.ts`, а не упавшим тестом (теста, который
+  прогонял бы достаточно длинный диалог, не было). Исправлено переходом на сжатие по границам
+  целых групп вызовов инструментов вместо сырого счётчика сообщений.
+
+**3. Что заняло бы в 3 раза больше времени без ИИ?**
+Ручное написание данных о поступлении для 20 университетов — реалистичных и корректных для
+каждой страны; корректная с первого раза разводка связей Prisma (многие-ко-многим для
+специальностей, один-к-одному для требований, таблицы памяти сессий и сообщений); и чтение
+реальной актуальной документации Next.js 16 / Prisma 6–7 вместо догадок по более старым и
+привычным версиям. Все три — та самая работа, которая механическая, когда знаешь форму
+результата, но медленная, если делать её с нуля.
+
+## Открытые вопросы
+
+Не доделано и не восстанавливается из чтения кода позже:
+
+- **Деплой заблокирован записями в SQLite.** `AgentMemory` (`src/lib/ai/memory.ts`) создаёт
+  строку `ChatSession` и строку `ChatMessage` на каждый ход диалога, то есть приложение
+  *не* является read-only во время обработки запроса. Файл `dev.db`, вложенный через
+  `outputFileTracingIncludes`, попадает на serverless-ФС, доступную только на чтение, поэтому
+  первое же сообщение в чат упадёт с `SQLITE_READONLY`, тогда как страницы каталога продолжат
+  работать. Два выхода: копировать БД в `/tmp` на холодном старте либо направить
+  `DATABASE_URL` на Turso/Neon. Ни один не затрагивает код запросов — всё идёт через
+  `src/lib/db.ts` и `src/lib/universities.ts`.
+- **Сжатие не покрыто тестами.** `MAX_BUFFER_MESSAGES` равен 16, а самый длинный e2e-диалог
+  состоит из одного хода, поэтому `compactIfNeeded()` под тестами не вызывается ни разу —
+  включая логику границ групп вызовов инструментов, которая была предметом бага №4 выше.
+- **Уязвимость `deepmerge-ts`** в парсере конфигов CLI Prisma — только для разработки, не стоит
+  отката на пре-релизную сборку. См. раздел README «Замечание по npm audit».
+
+## Решения, которые стоит помнить
+
+Выборы, которые не были багами, а потому нигде больше не зафиксированы:
+
+- **Один общий слой запросов** (`src/lib/universities.ts`) и для REST-роутов, и для инструментов
+  ИИ, вместо того чтобы агент ходил в Prisma напрямую. ТЗ требует инструментов, работающих на
+  реальных данных; общий слой делает это структурно верным, а не декларацией — и именно поэтому
+  смена базы данных позже будет изменением конфигурации, а не кода.
+- **SQLite вместо Postgres.** Каталог — фиксированный контент, впекаемый в деплой: `npm run build`
+  каждый раз выполняет `prisma migrate deploy && tsx prisma/seed.ts`. Чтобы склонировать и
+  запустить проект, не нужен ни один внешний аккаунт, а для учебного проекта это важнее, чем
+  масштабируемость записи.
+- **httpOnly-cookie для идентификатора сессии, память в БД**, а не состояние диалога в
+  `localStorage`. Транскрипт остаётся на сервере (клиент не может подделать историю и подсунуть
+  её в промпт) и переживает холодные старты serverless между запросами.
+- **Prisma закреплена на 6.** Путь SQLite в v7 требует driver adapter (`node:sqlite` /
+  `@prisma/adapter-*`); это лишняя поверхность без выгоды на таком масштабе.
