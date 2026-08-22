@@ -1,38 +1,41 @@
-# Role
+# Роль
 
-Backend Developer (API & Data) for UniGuide. Owns `prisma/schema.prisma`, `prisma/seed.ts`,
-`src/lib/db.ts`, `src/lib/universities.ts`, and the `src/app/api/**` route handlers.
+Backend-разработчик (API и данные) в UniGuide. Отвечает за `prisma/schema.prisma`,
+`prisma/seed.ts`, `src/lib/db.ts`, `src/lib/universities.ts` и хендлеры роутов в
+`src/app/api/**`.
 
-# System Rules
+# Системные правила
 
-- One source of truth for data access: both the public API routes and the AI tools
-  (`src/lib/ai/tools.ts`) must call through `src/lib/universities.ts` — never duplicate a
-  Prisma query inline in a route handler or a tool.
-- Schema changes go through `npx prisma migrate dev`, never hand-edited SQL migration files.
-- SQLite has no `mode: "insensitive"` filter (Postgres/Mongo-only in Prisma); string filters in
-  `universities.ts` use `contains` (SQL `LIKE`, case-insensitive for ASCII on SQLite by default)
-  instead, deliberately, for both exact-ish and free-text filters — do not "fix" these back to
-  `equals`/`mode: insensitive`, it will throw at runtime on this datasource.
-- Do not add a hosted database (Supabase/Postgres/etc.) without updating `.env.example`,
-  `next.config.ts`'s `outputFileTracingIncludes`, and the deploy notes in `README.md` — the
-  current setup is deliberately zero-external-account (SQLite file) since no such account was
-  available while building this.
+- Один источник истины для доступа к данным: и публичные API-роуты, и инструменты ИИ
+  (`src/lib/ai/tools.ts`) обязаны ходить через `src/lib/universities.ts` — никогда не дублировать
+  запрос Prisma прямо в хендлере роута или в инструменте.
+- Изменения схемы проводятся через `npx prisma migrate dev`, а не правкой SQL-файлов миграций
+  вручную.
+- В SQLite нет фильтра `mode: "insensitive"` (в Prisma он только для Postgres/Mongo); строковые
+  фильтры в `universities.ts` намеренно используют вместо него `contains` (SQL `LIKE`, который в
+  SQLite по умолчанию регистронезависим для ASCII) — и для точных, и для свободнотекстовых
+  фильтров. Не «чините» это обратно на `equals` / `mode: insensitive`: на этом источнике данных
+  оно упадёт в рантайме.
+- Не добавлять хостируемую базу данных (Supabase/Postgres и т. п.) без обновления `.env.example`,
+  `outputFileTracingIncludes` в `next.config.ts` и заметок о деплое в `README.md` — текущая
+  схема намеренно не требует ни одного внешнего аккаунта (файл SQLite), поскольку такого аккаунта
+  во время разработки не было.
 
-# MCP & Tools
+# MCP и инструменты
 
-- **Context7 MCP** — used to confirm current Prisma API behavior before writing the schema and
-  query layer. Prisma 7 (the version `npm install` pulled at build time) changed SQLite to
-  require a driver-adapter/`node:sqlite` setup; after checking the docs the project was
-  deliberately pinned to Prisma 6 (`package.json`), which uses the classic, stable
-  `datasource db { provider = "sqlite", url = env("DATABASE_URL") }` pattern instead — recorded
-  here so a future upgrade attempt understands why the pin exists.
-- No sub-agents used for this role.
+- **Context7 MCP** — использовался, чтобы сверить актуальное поведение API Prisma до написания
+  схемы и слоя запросов. В Prisma 7 (именно эту версию подтянул `npm install` на этапе сборки)
+  SQLite стал требовать связку driver adapter / `node:sqlite`; после чтения документации проект
+  был намеренно закреплён на Prisma 6 (`package.json`), где работает классический стабильный
+  паттерн `datasource db { provider = "sqlite", url = env("DATABASE_URL") }`. Записано здесь,
+  чтобы будущая попытка обновления понимала, откуда взялся этот пин.
+- Сабагенты для этой роли не использовались.
 
-# Output Contracts
+# Контракты вывода
 
-- API routes return `NextResponse.json(...)` with a top-level object (`{ universities }`,
-  `{ university }`, `{ error }`), never a bare array — keeps the response shape extensible.
-- `src/lib/universities.ts` functions return plain serializable objects (no raw Prisma model
-  instances leaked to callers), so both `route.ts` files and `lib/ai/tools.ts` can consume them
-  identically.
-- Every new query helper needs a corresponding unit test in `tests/unit/universities.test.ts`.
+- API-роуты возвращают `NextResponse.json(...)` с объектом верхнего уровня (`{ universities }`,
+  `{ university }`, `{ error }`), а не голый массив — так форма ответа остаётся расширяемой.
+- Функции `src/lib/universities.ts` возвращают простые сериализуемые объекты (сырые модели Prisma
+  наружу не утекают), чтобы и файлы `route.ts`, и `lib/ai/tools.ts` потребляли их одинаково.
+- Каждому новому хелперу запроса нужен соответствующий модульный тест в
+  `tests/unit/universities.test.ts`.

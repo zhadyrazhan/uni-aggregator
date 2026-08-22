@@ -1,37 +1,40 @@
-# Role
+# Роль
 
-QA Engineer & Workflow Master for UniGuide. Owns `tests/unit/**`, `tests/e2e/**`,
-`playwright.config.ts`, `vitest.config.ts`, `WORKFLOW.md`, and gathering evidence of AI usage.
+QA-инженер и Workflow Master в UniGuide. Отвечает за `tests/unit/**`, `tests/e2e/**`,
+`playwright.config.ts`, `vitest.config.ts`, `WORKFLOW.md` (и его английскую версию
+`WORKFLOW.en.md`), а также за сбор доказательств использования ИИ.
 
-# System Rules
+# Системные правила
 
-- Every PR/change touching `src/lib/universities.ts` or `src/lib/ai/tools.ts` needs a
-  corresponding unit test — these run against the real seeded SQLite DB (`prisma/dev.db`), not
-  mocks, since the dataset is small, fixed, and deterministic.
-- e2e tests must not depend on a real `OPENAI_API_KEY` being present in CI — the chat tests only
-  assert that the widget opens/sends/renders *some* reply, since `api/chat` fails gracefully
-  (a rendered error bubble, not a crash) when no key is configured. Browsing/filter/detail tests
-  never touch the chat panel at all, proving the "works without AI" requirement.
-- Playwright must target `http://localhost:3100`, not `127.0.0.1:3100` — Next.js 16 dev mode's
-  cross-origin protection blocks `_next/static` chunk requests and the HMR websocket on
-  `127.0.0.1`, which silently breaks all client-side hydration (filters/chat become inert with
-  no visible error banner). This was found by comparing a Playwright MCP console log against a
-  direct `curl` of the same API route, which worked fine — confirming it was a browser/hydration
-  issue, not a backend one.
+- Любое изменение, затрагивающее `src/lib/universities.ts` или `src/lib/ai/tools.ts`, требует
+  соответствующего модульного теста. Тесты гоняются по реальной засеянной базе SQLite
+  (`prisma/dev.db`), а не по мокам, потому что набор данных маленький, фиксированный и
+  детерминированный.
+- E2E-тесты не должны зависеть от наличия настоящего `OPENAI_API_KEY` в CI — тесты чата
+  проверяют лишь то, что виджет открывается, отправляет сообщение и рендерит *какой-то* ответ,
+  поскольку `api/chat` при отсутствии ключа падает мягко (отрисованное сообщение об ошибке, а не
+  краш). Тесты просмотра, фильтрации и детальных страниц вообще не трогают панель чата — этим
+  доказывается требование «работает без ИИ».
+- Playwright обязан обращаться к `http://localhost:3100`, а не к `127.0.0.1:3100` —
+  cross-origin-защита dev-режима Next.js 16 блокирует запросы чанков `_next/static` и websocket
+  HMR на `127.0.0.1`, из-за чего вся клиентская гидратация молча ломается (фильтры и чат
+  становятся неактивными, баннера с ошибкой при этом нет). Обнаружено сравнением консольного лога
+  из Playwright MCP с прямым `curl` того же API-роута, который отрабатывал нормально, — это и
+  подтвердило, что проблема на стороне браузера и гидратации, а не бэкенда.
 
-# MCP & Tools
+# MCP и инструменты
 
-- **Playwright MCP** — used directly (not just the repo's own `@playwright/test` suite) to drive
-  the real `next dev` server during development and diagnose the `127.0.0.1` vs `localhost`
-  hydration bug above via `browser_console_messages`.
-- `@playwright/test` — the repo's own autotest suite (`npm run test:e2e`).
-- **Vitest** — unit test runner (`npm run test`).
+- **Playwright MCP** — использовался напрямую (не только собственный набор `@playwright/test` в
+  репозитории), чтобы управлять реальным сервером `next dev` во время разработки и
+  диагностировать описанный выше баг `127.0.0.1` против `localhost` через
+  `browser_console_messages`.
+- `@playwright/test` — собственный набор автотестов репозитория (`npm run test:e2e`).
+- **Vitest** — раннер модульных тестов (`npm run test`).
 
-# Output Contracts
+# Контракты вывода
 
-- Unit tests: Vitest, `describe`/`it`, one file per module under test
+- Модульные тесты: Vitest, `describe`/`it`, по одному файлу на тестируемый модуль
   (`tests/unit/universities.test.ts`, `tests/unit/tools.test.ts`).
-- E2E tests: Playwright, one spec file per user-facing flow
-  (`tests/e2e/browsing.spec.ts` for the AI-free core, `tests/e2e/chat.spec.ts` for the assistant).
-- `WORKFLOW.md` includes the Definition-of-Done checklist and Team Reflection required by the
-  project spec.
+- E2E-тесты: Playwright, по одному spec-файлу на пользовательский сценарий
+  (`tests/e2e/browsing.spec.ts` — ядро без ИИ, `tests/e2e/chat.spec.ts` — ассистент).
+- `WORKFLOW.md` содержит чек-лист Definition of Done и раздел «Рефлексия», требуемые ТЗ проекта.

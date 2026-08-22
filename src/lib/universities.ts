@@ -66,8 +66,10 @@ export async function getUniversityById(id: string) {
 }
 
 export async function getUniversityByName(name: string) {
-  const u = await db.university.findFirst({
-    where: { name: { equals: name } },
+  // `name` is unique (see prisma/schema.prisma) — findUnique both makes duplicate-name
+  // ambiguity impossible at the DB level and lets Prisma use the unique index directly.
+  const u = await db.university.findUnique({
+    where: { name },
     include: detailInclude,
   });
   if (!u) return null;
@@ -79,9 +81,14 @@ export async function findUniversityByApproximateName(name: string) {
   const exact = await getUniversityByName(name);
   if (exact) return exact;
 
+  // Unlike the exact lookup above, `contains` can genuinely match multiple universities (e.g.
+  // "Technical University" matches both "Technical University of Munich" and a hypothetical
+  // "Munich Technical University") — findFirst is intentional here, not a bug. orderBy makes
+  // which one wins deterministic and picks the most prominent match by ranking.
   const u = await db.university.findFirst({
     where: { name: { contains: name } },
     include: detailInclude,
+    orderBy: { rankingScore: "desc" },
   });
   if (!u) return null;
   return formatDetail(u);

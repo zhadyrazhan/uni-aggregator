@@ -1,38 +1,39 @@
-# Role
+# Роль
 
-Frontend Developer (UI/UX) for UniGuide, the university aggregator. Owns pages, components,
-layout, and client-side state under `src/app/**` and `src/components/**`.
+Frontend-разработчик (UI/UX) в UniGuide, агрегаторе университетов. Отвечает за страницы,
+компоненты, вёрстку и клиентское состояние в `src/app/**` и `src/components/**`.
 
-# System Rules
+# Системные правила
 
-- The AI assistant may generate/edit React (TSX) components and Tailwind classes, but every
-  page must remain fully usable with the AI chat widget closed — the catalog, filters, and
-  detail pages are never allowed to depend on `src/lib/ai/*`.
-- No plain unstyled HTML: every UI surface is built from the shared component set
-  (`Badge`, `UniversityCard`, `FilterBar`/`UniversityBrowser`, `RequirementsPanel`, `ChatPanel`)
-  styled with Tailwind, not hand-rolled inline styles or a raw `<button>`/`<div>` with no design
-  system — this is a hard requirement from the project spec.
-- Do not fetch data client-side on first paint where a Server Component can fetch it directly
-  (see `src/app/page.tsx`, `src/app/universities/[id]/page.tsx`) — this keeps the no-JS/no-AI
-  baseline working and fast.
-- Do not introduce a second styling system (CSS modules, styled-components, etc.) alongside
+- ИИ-ассистенту разрешено генерировать и править React-компоненты (TSX) и классы Tailwind, но
+  каждая страница обязана оставаться полностью работоспособной при закрытом виджете чата —
+  каталог, фильтры и детальные страницы никогда не имеют права зависеть от `src/lib/ai/*`.
+- Никакого голого нестилизованного HTML: любая поверхность интерфейса собирается из общего набора
+  компонентов (`Badge`, `UniversityCard`, `UniversityBrowser`, `RequirementsPanel`, `ChatPanel`)
+  со стилями Tailwind, а не из инлайновых стилей или сырых `<button>`/`<div>` без
+  дизайн-системы — это жёсткое требование ТЗ.
+- Не загружать данные на клиенте при первой отрисовке там, где их может получить сразу
+  Server Component (см. `src/app/page.tsx`, `src/app/universities/[id]/page.tsx`) — так базовый
+  режим без JS и без ИИ остаётся рабочим и быстрым.
+- Не вводить вторую систему стилизации (CSS-модули, styled-components и т. п.) параллельно с
   Tailwind.
 
-# MCP & Tools
+# MCP и инструменты
 
-- **Context7 MCP** — used while building to pull current Next.js 16 / React 19 / Tailwind v4
-  API docs, since both Next.js 16 and the Tailwind v4 CSS-based theme config are newer than
-  the assistant's training data (confirmed via `resolve-library-id` + `query-docs` against
-  `/vercel/next.js` for App Router route handler and dynamic-param conventions).
-- No sub-agents used for this role — component work was done directly against the shared
-  query layer in `src/lib/universities.ts`.
+- **Context7 MCP** — использовался в процессе разработки, чтобы получить актуальную документацию
+  Next.js 16 / React 19 / Tailwind v4: и Next.js 16, и CSS-ориентированная конфигурация темы
+  Tailwind v4 новее обучающих данных ассистента (проверено через `resolve-library-id` +
+  `query-docs` по `/vercel/next.js` для конвенций App Router по route handlers и динамическим
+  параметрам).
+- Сабагенты для этой роли не использовались — работа над компонентами велась напрямую поверх
+  общего слоя запросов в `src/lib/universities.ts`.
 
-# Output Contracts
+# Контракты вывода
 
-- Components: functional TSX, typed props, no `any`.
-- Server Components by default; `"use client"` only where interactivity is required
+- Компоненты: функциональные TSX, типизированные пропсы, никакого `any`.
+- Server Components по умолчанию; `"use client"` — только там, где нужна интерактивность
   (`UniversityBrowser`, `ChatPanel`).
-- Styling: Tailwind utility classes only, following the existing scale (slate/indigo palette,
-  `rounded-2xl` cards, `shadow-sm`).
-- Every new page/component must pass `npm run lint` and `npm run build` with zero errors before
-  being considered done.
+- Стилизация: только утилитарные классы Tailwind, в рамках существующей шкалы (палитра
+  slate/indigo, карточки `rounded-2xl`, `shadow-sm`).
+- Каждая новая страница или компонент обязаны проходить `npm run lint` и `npm run build` без
+  единой ошибки, прежде чем считаться готовыми.

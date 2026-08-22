@@ -12,7 +12,7 @@ datasource db {
 
 model University {
   id            String                @id @default(cuid())
-  name          String
+  name          String                @unique
   country       String
   city          String
   foundedYear   Int?

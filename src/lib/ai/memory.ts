@@ -6,9 +6,8 @@ import { db } from "@/lib/db";
  * Server-side conversation memory, persisted in ChatSession/ChatMessage (prisma/schema.prisma)
  * and keyed by a session id stored in a cookie on the client. Once the buffer grows past
  * MAX_BUFFER_MESSAGES, the oldest messages are compacted into a running summary via one extra
- * LLM call — same compaction technique used in lecture2/compaction_example.py and
- * project1-kinomaniac/memory.py, ported to a DB-backed buffer so it survives serverless
- * cold starts between requests.
+ * LLM call — the same compaction technique used in lecture2/compaction_example.py, ported to a
+ * DB-backed buffer so it survives serverless cold starts between requests.
  */
 const MAX_BUFFER_MESSAGES = 16;
 const KEEP_RECENT_UNITS = 4;
