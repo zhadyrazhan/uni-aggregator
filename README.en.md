@@ -95,12 +95,18 @@ into the serverless functions.
 
 **How chat works on serverless.** `AgentMemory` (`src/lib/ai/memory.ts`) writes a
 `ChatSession`/`ChatMessage` row on every turn — the bundled `prisma/dev.db` won't do for that,
-since it's read-only. `src/lib/db.ts` handles this: on the first database access at runtime
-(detected via the `NETLIFY` or `VERCEL` environment variable, which both platforms set
-automatically), it copies the seeded DB into `/tmp/dev.db` once per cold start and opens the
-Prisma client against that copy via the `datasourceUrl` option — no query code changes. Local
-dev and the build step's own `prisma migrate deploy` + seed don't hit this branch at all and
-keep working through `DATABASE_URL` as before.
+since it's read-only. `src/lib/db.ts` handles this without guessing about the host: on the first
+database access at runtime it does a real write-probe (`fs.accessSync(path, W_OK)`) on whatever
+file `DATABASE_URL` points at. If it's writable, nothing changes (local dev, or a self-hosted
+deploy with a real persistent DB). If the file exists but is read-only (a serverless function's
+bundle), it copies the seeded DB into `/tmp/dev.db` once per cold start and opens the Prisma
+client against that copy via the `datasourceUrl` option — no query code changes.
+> Two earlier versions of this check guessed about the host instead of testing the real
+> condition: first `process.env.NETLIFY`/`VERCEL` (turned out not to be set in Netlify's function
+> runtime, only at build time — the first chat message on the live deploy failed with
+> `SQLITE_READONLY`), then `NODE_ENV === "production"` (fixed Netlify, but code review correctly
+> pointed out it would break a self-hosted deploy with a real persistent DB). See
+> [`WORKFLOW.md`](WORKFLOW.md)'s Reflection section for the full story.
 
 **One thing to know about `/tmp`:** it's ephemeral, per function instance — chats started there
 don't survive a cold start (fine for a class project) and aren't shared across parallel function

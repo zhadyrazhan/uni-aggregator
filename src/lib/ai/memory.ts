@@ -1,6 +1,7 @@
 import type OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { db } from "@/lib/db";
+import { withRetry } from "@/lib/ai/retry";
 
 /**
  * Server-side conversation memory, persisted in ChatSession/ChatMessage (prisma/schema.prisma)
@@ -36,12 +37,18 @@ export class AgentMemory {
     await db.chatMessage.create({ data: { sessionId: this.sessionId, role: "user", content } });
   }
 
-  async addAssistantToolCalls(toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[]) {
+  async addAssistantToolCalls(
+    content: string | null | undefined,
+    toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[]
+  ) {
+    // Persist the model's own reasoning text (SYSTEM_PROMPT rule 4 asks it to explain itself
+    // before calling a tool) instead of discarding it — otherwise it's lost from both the
+    // replayed history the model sees on later turns and any UI that surfaces it.
     await db.chatMessage.create({
       data: {
         sessionId: this.sessionId,
         role: "assistant",
-        content: "",
+        content: content ?? "",
         toolCallsJson: JSON.stringify(toolCalls),
       },
     });
@@ -58,11 +65,10 @@ export class AgentMemory {
   }
 
   async getMessagesForApi(systemPrompt: string): Promise<ChatCompletionMessageParam[]> {
-    const session = await db.chatSession.findUniqueOrThrow({ where: { id: this.sessionId } });
-    const rows = await db.chatMessage.findMany({
-      where: { sessionId: this.sessionId },
-      orderBy: { createdAt: "asc" },
-    });
+    const [session, rows] = await Promise.all([
+      db.chatSession.findUniqueOrThrow({ where: { id: this.sessionId } }),
+      db.chatMessage.findMany({ where: { sessionId: this.sessionId }, orderBy: { createdAt: "asc" } }),
+    ]);
 
     const systemContent = session.summary
       ? `${systemPrompt}\n\nSummary of earlier conversation (already-established facts/preferences): ${session.summary}`
@@ -120,23 +126,28 @@ export class AgentMemory {
 
     const session = await db.chatSession.findUniqueOrThrow({ where: { id: this.sessionId } });
 
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      temperature: 0,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Summarize the following conversation in 2-4 sentences, preserving the user's stated preferences (major, country, budget) and any names already discussed. Be terse.",
-        },
-        {
-          role: "user",
-          content: session.summary
-            ? `Previous summary: ${session.summary}\n\nNew messages to fold in:\n${transcript}`
-            : transcript,
-        },
-      ],
-    });
+    // Retried the same way as the main agent loop's completions call (src/lib/ai/agent.ts) —
+    // this housekeeping step runs on the hot request path too, and an unretried transient error
+    // here would fail the user's entire chat turn just to compact old messages.
+    const response = await withRetry(() =>
+      this.client.chat.completions.create({
+        model: this.model,
+        temperature: 0,
+        messages: [
+          {
+            role: "system",
+            content:
+              "Summarize the following conversation in 2-4 sentences, preserving the user's stated preferences (major, country, budget) and any names already discussed. Be terse.",
+          },
+          {
+            role: "user",
+            content: session.summary
+              ? `Previous summary: ${session.summary}\n\nNew messages to fold in:\n${transcript}`
+              : transcript,
+          },
+        ],
+      })
+    );
 
     const summary = response.choices[0]?.message.content?.trim() || session.summary || "";
 
