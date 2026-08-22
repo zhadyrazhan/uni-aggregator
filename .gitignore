@@ -53,3 +53,6 @@ next-env.d.ts
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# scratch snapshots/logs saved by the Playwright MCP tool during manual verification
+/.playwright-mcp/

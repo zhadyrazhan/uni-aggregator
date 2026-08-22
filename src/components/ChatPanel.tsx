@@ -47,11 +47,15 @@ export function ChatPanel() {
     }
   }
 
+  // bottom-20, not bottom-6: Netlify injects a "Powered by Netlify" badge (#nl-badge-frame) as a
+  // fixed 202x64 iframe pinned to the bottom-right at z-index 2147483645 — near the max int, so
+  // outranking it isn't practical and would overlap it visually anyway. 5rem clears the badge's
+  // 64px height with a 16px gap (measured identically on desktop and mobile viewports).
   if (!open) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 rounded-full bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-indigo-700"
+        className="fixed bottom-20 right-6 z-50 rounded-full bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-indigo-700"
       >
         Ask UniGuide
       </button>
@@ -59,7 +63,7 @@ export function ChatPanel() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 flex h-[28rem] w-80 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:w-96">
+    <div className="fixed bottom-20 right-6 z-50 flex h-[28rem] w-80 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:w-96">
       <div className="flex items-center justify-between border-b border-slate-200 bg-indigo-600 px-4 py-3">
         <span className="text-sm font-semibold text-white">UniGuide assistant</span>
         <button onClick={() => setOpen(false)} className="text-white/80 hover:text-white" aria-label="Close chat">
