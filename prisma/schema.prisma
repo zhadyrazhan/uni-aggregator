@@ -2,7 +2,12 @@
 // University catalog (works with zero AI) + chat memory tables used by the AI agent (lib/ai/memory.ts).
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // "native" alone resolves to whatever OS ran `npm install`/`prisma generate` — usually the
+  // build machine. Netlify's deployed function runtime can differ from its build machine, so an
+  // explicit Debian/OpenSSL 3.0 target is generated too regardless of which one "native" ends up
+  // meaning; see https://www.prisma.io/docs/guides/postgres/netlify.
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
