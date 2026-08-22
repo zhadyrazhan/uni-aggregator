@@ -1,6 +1,8 @@
-import OpenAI, { APIConnectionError, APIError, RateLimitError } from "openai";
+import OpenAI from "openai";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { AgentMemory } from "@/lib/ai/memory";
 import { SYSTEM_PROMPT } from "@/lib/ai/prompt";
+import { withRetry } from "@/lib/ai/retry";
 import { executeTool, TOOLS_SCHEMA } from "@/lib/ai/tools";
 
 /**
@@ -10,8 +12,6 @@ import { executeTool, TOOLS_SCHEMA } from "@/lib/ai/tools";
  * backoff.
  */
 const MAX_TOOL_ITERATIONS = 6;
-const MAX_RETRIES = 3;
-const RETRY_BACKOFF_MS = 500;
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
 export type AgentStep =
@@ -35,13 +35,26 @@ export async function runAgent(
   await memory.addUserMessage(userMessage);
   await memory.compactIfNeeded();
 
+  // Fetched once and appended to locally as the loop progresses, instead of re-querying the DB
+  // on every tool-loop iteration (up to MAX_TOOL_ITERATIONS times per single chat turn).
+  // Everything pushed here is also persisted via `memory.add*` so it survives across requests.
+  const messages = await memory.getMessagesForApi(SYSTEM_PROMPT);
+
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
-    const messages = await memory.getMessagesForApi(SYSTEM_PROMPT);
     const response = await callWithRetry(client, messages);
     const message = response.choices[0].message;
 
     if (message.tool_calls && message.tool_calls.length > 0) {
-      await memory.addAssistantToolCalls(message.tool_calls);
+      await memory.addAssistantToolCalls(message.content, message.tool_calls);
+      messages.push({
+        role: "assistant",
+        content: message.content ?? null,
+        tool_calls: message.tool_calls,
+      });
+
+      if (message.content) {
+        onStep?.({ type: "reasoning", text: message.content });
+      }
 
       for (const call of message.tool_calls) {
         if (call.type !== "function") continue;
@@ -53,11 +66,11 @@ export async function runAgent(
           // leave args empty if the model produced malformed JSON
         }
 
-        onStep?.({ type: "reasoning", text: `Calling ${name}(${JSON.stringify(args)})` });
         onStep?.({ type: "tool_call", name, args });
 
         const result = await executeTool(name, args);
         await memory.addToolResult(call.id, name, result);
+        messages.push({ role: "tool", tool_call_id: call.id, content: result });
       }
       continue;
     }
@@ -73,30 +86,14 @@ export async function runAgent(
   return { sessionId: memory.id, reply: fallback };
 }
 
-async function callWithRetry(client: OpenAI, messages: Parameters<typeof client.chat.completions.create>[0]["messages"]) {
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      return await client.chat.completions.create({
-        model: MODEL,
-        messages,
-        tools: TOOLS_SCHEMA,
-        tool_choice: "auto",
-        temperature: 0,
-      });
-    } catch (error) {
-      lastError = error;
-      if (error instanceof RateLimitError || error instanceof APIConnectionError) {
-        await sleep(RETRY_BACKOFF_MS * attempt);
-        continue;
-      }
-      if (error instanceof APIError) break;
-      throw error;
-    }
-  }
-  throw new Error(`OpenAI request failed after ${MAX_RETRIES} attempts: ${String(lastError)}`);
-}
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function callWithRetry(client: OpenAI, messages: ChatCompletionMessageParam[]) {
+  return withRetry(() =>
+    client.chat.completions.create({
+      model: MODEL,
+      messages,
+      tools: TOOLS_SCHEMA,
+      tool_choice: "auto",
+      temperature: 0,
+    })
+  );
 }

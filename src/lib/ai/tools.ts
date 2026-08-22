@@ -84,14 +84,7 @@ export async function executeTool(name: string, args: Record<string, unknown>): 
           limit: asNumber(args.limit) ?? 10,
         });
         if (results.length === 0) return "No universities matched those filters.";
-        return results
-          .map(
-            (u) =>
-              `${u.name} — ${u.city}, ${u.country} | majors: ${u.majors.join(", ") || "n/a"} | tuition: ${
-                u.tuitionUsd ? `$${u.tuitionUsd}/yr` : "n/a"
-              } | ranking score: ${u.rankingScore ?? "n/a"}`
-          )
-          .join("\n");
+        return results.map((u) => formatUniversityLine(u)).join("\n");
       }
 
       case "get_university_details": {
@@ -103,7 +96,7 @@ export async function executeTool(name: string, args: Record<string, unknown>): 
           `${u.name} (${u.city}, ${u.country}, founded ${u.foundedYear ?? "n/a"})`,
           u.description,
           `Majors: ${u.majors.join(", ") || "n/a"}`,
-          `Tuition: ${u.tuitionUsd ? `$${u.tuitionUsd}/yr` : "n/a"}`,
+          `Tuition: ${formatTuition(u.tuitionUsd)}`,
           `Ranking score: ${u.rankingScore ?? "n/a"}`,
           u.website ? `Website: ${u.website}` : undefined,
         ]
@@ -135,14 +128,7 @@ export async function executeTool(name: string, args: Record<string, unknown>): 
           maxTuitionUsd: asNumber(args.maxTuitionUsd),
         });
         if (results.length === 0) return "No universities matched those criteria.";
-        return results
-          .map(
-            (u, i) =>
-              `${i + 1}. ${u.name} — ${u.city}, ${u.country} | majors: ${u.majors.join(", ") || "n/a"} | tuition: ${
-                u.tuitionUsd ? `$${u.tuitionUsd}/yr` : "n/a"
-              } | ranking score: ${u.rankingScore ?? "n/a"}`
-          )
-          .join("\n");
+        return results.map((u, i) => formatUniversityLine(u, i + 1)).join("\n");
       }
 
       default:
@@ -159,4 +145,24 @@ function asString(value: unknown): string | undefined {
 
 function asNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+type UniversityLineFields = {
+  name: string;
+  city: string;
+  country: string;
+  majors: string[];
+  tuitionUsd: number | null;
+  rankingScore: number | null;
+};
+
+/** Shared by list_universities and recommend_universities — was duplicated inline in both. */
+function formatUniversityLine(u: UniversityLineFields, index?: number): string {
+  const prefix = index != null ? `${index}. ` : "";
+  return `${prefix}${u.name} — ${u.city}, ${u.country} | majors: ${u.majors.join(", ") || "n/a"} | tuition: ${formatTuition(u.tuitionUsd)} | ranking score: ${u.rankingScore ?? "n/a"}`;
+}
+
+/** `??`, not `?:` — a tuition of exactly $0 (a free-tuition university) is a real value, not "missing". */
+function formatTuition(tuitionUsd: number | null): string {
+  return typeof tuitionUsd === "number" ? `$${tuitionUsd}/yr` : "n/a";
 }
