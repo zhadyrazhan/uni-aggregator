@@ -1,0 +1,70 @@
+// Uni-Aggregator data model.
+// University catalog (works with zero AI) + chat memory tables used by the AI agent (lib/ai/memory.ts).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model University {
+  id            String                @id @default(cuid())
+  name          String
+  country       String
+  city          String
+  foundedYear   Int?
+  tuitionUsd    Int?
+  rankingScore  Int?
+  description   String
+  website       String?
+  majors        Major[]               @relation("UniversityMajors")
+  requirement   AdmissionRequirement?
+  createdAt     DateTime              @default(now())
+
+  @@index([country])
+}
+
+model Major {
+  id           String       @id @default(cuid())
+  name         String       @unique
+  universities University[] @relation("UniversityMajors")
+}
+
+// One-to-one: each university has exactly one requirements record
+// (baalls/exams are modeled as human-readable fields since they vary a lot by country).
+model AdmissionRequirement {
+  id            String     @id @default(cuid())
+  university    University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  universityId  String     @unique
+  requiredExams String // e.g. "ЕНТ, IELTS" or "SAT, TOEFL"
+  minExamScore  String // e.g. "ЕНТ ≥ 90" or "SAT ≥ 1200, IELTS ≥ 6.5"
+  minGpa        Float?
+  notes         String?
+}
+
+// --- AI chat memory (lib/ai/memory.ts) ---
+
+model ChatSession {
+  id        String        @id @default(cuid())
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  summary   String? // compacted summary of messages trimmed out of the active buffer
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id            String      @id @default(cuid())
+  session       ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId     String
+  role          String // "user" | "assistant" | "tool"
+  content       String
+  toolName      String? // set on role = "tool"
+  toolCallId    String? // set on role = "tool", links back to the requesting call
+  toolCallsJson String? // set on role = "assistant" when it requested tool calls (raw OpenAI tool_calls array)
+  createdAt     DateTime    @default(now())
+
+  @@index([sessionId])
+}
