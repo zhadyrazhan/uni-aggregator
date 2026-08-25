@@ -67,7 +67,13 @@ export class AgentMemory {
   async getMessagesForApi(systemPrompt: string): Promise<ChatCompletionMessageParam[]> {
     const [session, rows] = await Promise.all([
       db.chatSession.findUniqueOrThrow({ where: { id: this.sessionId } }),
-      db.chatMessage.findMany({ where: { sessionId: this.sessionId }, orderBy: { createdAt: "asc" } }),
+      db.chatMessage.findMany({
+        where: { sessionId: this.sessionId },
+        // `id` (cuid, itself time-ordered) breaks ties among rows whose `createdAt` lands in the
+        // same tick — SQLite's default timestamp resolution isn't fine-grained enough to keep
+        // same-second inserts distinguishable by createdAt alone.
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      }),
     ]);
 
     const systemContent = session.summary
@@ -99,7 +105,7 @@ export class AgentMemory {
   async compactIfNeeded() {
     const rows = await db.chatMessage.findMany({
       where: { sessionId: this.sessionId },
-      orderBy: { createdAt: "asc" },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     });
     if (rows.length <= MAX_BUFFER_MESSAGES) return;
 
