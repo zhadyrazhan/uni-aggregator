@@ -2,8 +2,9 @@
 
 :root {
   color-scheme: light;
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Matches the slate-50/slate-900 page background/text used across the app (see layout.tsx). */
+  --background: #f8fafc;
+  --foreground: #0f172a;
 }
 
 @theme inline {

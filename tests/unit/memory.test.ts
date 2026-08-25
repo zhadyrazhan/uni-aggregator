@@ -55,7 +55,7 @@ describe("AgentMemory.compactIfNeeded", () => {
 
     const rows = await db.chatMessage.findMany({
       where: { sessionId: memory.id },
-      orderBy: { createdAt: "asc" },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     });
     expect(rows.length).toBe(KEEP_RECENT_UNITS);
     expect(rows.map((r) => r.content)).toEqual(["question 8", "answer 8", "question 9", "answer 9"]);
@@ -82,7 +82,7 @@ describe("AgentMemory.compactIfNeeded", () => {
 
     const rows = await db.chatMessage.findMany({
       where: { sessionId: memory.id },
-      orderBy: { createdAt: "asc" },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     });
     expect(rows.map((r) => r.role)).toEqual(["assistant", "user", "assistant", "tool", "assistant"]);
     expect(rows[2].toolCallsJson).toBeTruthy();
